@@ -1,0 +1,9 @@
+# jamalong
+
+> Group listening rooms with one shared queue, across music providers. A Go server owns room state. A TypeScript PWA acts as both the remote and the speaker.
+
+## Docs
+
+- [README](https://github.com/urmzd/jamalong/blob/main/README.md): What jamalong is and how to run it
+- [AGENTS.md](https://github.com/urmzd/jamalong/blob/main/AGENTS.md): Invariants, layout and conventions for coding agents
+- [CONTRIBUTING.md](https://github.com/urmzd/jamalong/blob/main/CONTRIBUTING.md): Development workflow
