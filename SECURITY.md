@@ -3,9 +3,9 @@
 ## Supported Versions
 
 | Version | Supported |
-|---------|-----------|
-| 0.x | Yes |
-| < 0.x | No |
+| ------- | --------- |
+| 0.x     | Yes       |
+| < 0.x   | No        |
 
 Pre-1.0 projects: only the latest minor is supported.
 

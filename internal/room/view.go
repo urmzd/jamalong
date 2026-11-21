@@ -41,10 +41,13 @@ type NowView struct {
 	PausedAtMS  *int64   `json:"paused_at_ms"`
 	// Waiting is true when the room paused itself because no speaker is
 	// connected.
-	Waiting    bool `json:"waiting"`
-	SkipVotes  int  `json:"skip_votes"`
-	SkipNeeded int  `json:"skip_needed"`
-	SkipVoted  bool `json:"skip_voted"`
+	Waiting bool `json:"waiting"`
+	// SeekSeq grows on every explicit seek. A lead speaker jumps to the clock
+	// when it changes, and at no other time.
+	SeekSeq    uint64 `json:"seek_seq"`
+	SkipVotes  int    `json:"skip_votes"`
+	SkipNeeded int    `json:"skip_needed"`
+	SkipVoted  bool   `json:"skip_voted"`
 }
 
 func (it *item) view(viewer string) ItemView {
@@ -77,6 +80,7 @@ func (r *Room) View(viewer string) View {
 			Item:        p.item.view(viewer),
 			StartedAtMS: p.startedAt.UnixMilli(),
 			Waiting:     p.paused && p.autoPaused,
+			SeekSeq:     p.seekSeq,
 			SkipVotes:   len(p.skipVotes),
 			SkipNeeded:  r.skipNeeded(),
 			SkipVoted:   voted,

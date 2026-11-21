@@ -98,7 +98,10 @@ type playing struct {
 	paused     bool
 	pausedAt   time.Time
 	autoPaused bool
-	skipVotes  map[string]struct{}
+	// seekSeq counts explicit seeks. The lead speaker follows the clock only
+	// when it changes. Otherwise the clock follows the lead.
+	seekSeq   uint64
+	skipVotes map[string]struct{}
 }
 
 func (p *playing) position(now time.Time) time.Duration {
@@ -250,8 +253,13 @@ func (r *Room) Disconnect(id string, now time.Time) {
 		return
 	}
 	m.conns--
-	if m.conns == 0 && r.now != nil {
-		delete(r.now.skipVotes, id)
+	if m.conns == 0 {
+		// A browser will not play sound again without a fresh tap, so a
+		// device that went away has to ask to be a speaker again.
+		m.speaker = false
+		if r.now != nil {
+			delete(r.now.skipVotes, id)
+		}
 	}
 	r.refreshSpeakers(now)
 	r.version++
@@ -561,6 +569,7 @@ func (r *Room) Seek(by string, positionMS int64, now time.Time) error {
 		ref = p.pausedAt
 	}
 	p.startedAt = ref.Add(-time.Duration(positionMS) * time.Millisecond)
+	p.seekSeq++
 	r.version++
 	return nil
 }

@@ -5,6 +5,7 @@
 - Go 1.27 or newer
 - [golangci-lint](https://golangci-lint.run) v2
 - `make`
+- Node 24 or newer and pnpm 11, for the web app
 
 ## Getting Started
 
@@ -12,6 +13,7 @@
 git clone https://github.com/urmzd/jamalong
 cd jamalong
 make init
+pnpm install
 ```
 
 ## Development
@@ -20,6 +22,7 @@ make init
 make check   # format, lint and test
 make test    # tests only
 make fmt     # format
+pnpm run check   # the same gate for the web app
 ```
 
 ## Commit Convention
@@ -31,7 +34,7 @@ style: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 
 1. Create a branch from `main`.
 2. Keep the change focused and add tests for it.
-3. Run `make check`.
+3. Run `make check` and `pnpm run check`.
 4. Open a pull request and fill in the template.
 
 ## Code Style

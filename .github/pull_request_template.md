@@ -12,7 +12,7 @@
 
 <!-- How was this tested? -->
 
-- [ ] `make check` passes
+- [ ] `make check` and `pnpm run check` pass
 - [ ] Tests added or updated for the change
 - [ ] Docs updated (README, AGENTS.md, skills) if behavior or interface changed
 

@@ -176,6 +176,9 @@ func TestClockPauseResumeSeek(t *testing.T) {
 	if got := pos(36 * time.Second); got != 61*time.Second {
 		t.Fatalf("seek position = %v", got)
 	}
+	if seq := r.View(host).Now.SeekSeq; seq != 1 {
+		t.Fatalf("seek_seq = %d, want 1 after one seek", seq)
+	}
 	must(t, r.Seek(host, 999_999_999, at(36*time.Second)))
 	if got := pos(36 * time.Second); got != 180*time.Second {
 		t.Fatalf("seek past the end = %v, want clamp to duration", got)
@@ -198,19 +201,25 @@ func TestRoomWaitsWithoutASpeaker(t *testing.T) {
 	if p, _ := r.Position(at(time.Minute + 5*time.Second)); p != 5*time.Second {
 		t.Fatalf("position after speaker joined = %v", p)
 	}
-	// Losing the last speaker pauses. Getting it back resumes.
+	// Losing the last speaker pauses. A device that comes back is a remote
+	// until it asks to play again, and then the track resumes where it was.
 	r.Disconnect(host, at(2*time.Minute))
 	if v := r.View(host); !v.Now.Waiting {
 		t.Fatal("room kept playing with no speaker")
 	}
 	must(t, r.Connect(host, at(3*time.Minute)))
-	if p, _ := r.Position(at(3 * time.Minute)); p != time.Minute {
-		t.Fatalf("position after reconnect = %v, want 1m", p)
+	if v := r.View(host); !v.Now.Waiting || v.Members[0].Speaker {
+		t.Fatalf("a returning device became a speaker on its own: %+v", v.Members[0])
 	}
-	// A manual pause survives a speaker reconnect.
+	must(t, r.SetSpeaker(host, true, at(3*time.Minute)))
+	if p, _ := r.Position(at(3 * time.Minute)); p != time.Minute {
+		t.Fatalf("position after the speaker returned = %v, want 1m", p)
+	}
+	// A manual pause survives the speaker leaving and returning.
 	must(t, r.Pause(host, at(3*time.Minute)))
 	r.Disconnect(host, at(4*time.Minute))
 	must(t, r.Connect(host, at(5*time.Minute)))
+	must(t, r.SetSpeaker(host, true, at(5*time.Minute)))
 	if v := r.View(host); v.Now.PausedAtMS == nil || v.Now.Waiting {
 		t.Fatalf("manual pause lost: %+v", v.Now)
 	}

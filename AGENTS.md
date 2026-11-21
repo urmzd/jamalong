@@ -24,18 +24,34 @@ Keep these true in every change.
 
 ## Layout
 
-| Path | Holds |
-| --- | --- |
-| `cmd/jamalong` | Server entry point |
-| `internal/` | Private Go packages |
+| Path                 | Holds                                                                       |
+| -------------------- | --------------------------------------------------------------------------- |
+| `cmd/jamalong`       | Server entry point and flags                                                |
+| `internal/room`      | Room state: members, fair queue, playback clock. No I/O, no wall clock      |
+| `internal/server`    | HTTP API, WebSocket, sessions, join secrets, rate limits                    |
+| `internal/provider`  | Turns a pasted link into a track. YouTube only so far                       |
+| `web/src`            | The PWA. `sync.ts` and `clock.ts` are pure and unit tested                  |
+| `web/src/styles.css` | Design tokens: color, type, spacing, radius. Change tokens, not rule values |
+| `showcase/`          | Screenshots of the real app, used in pull requests                          |
 
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Quality gate | `make check` |
-| Test | `make test` |
-| Lint | `make lint` |
+| Task         | Go           | Web              |
+| ------------ | ------------ | ---------------- |
+| Quality gate | `make check` | `pnpm run check` |
+| Test         | `make test`  | `pnpm test`      |
+| Lint         | `make lint`  | `pnpm run lint`  |
+| Build        | `make build` | `pnpm run build` |
+
+## Web
+
+- One column at every width. Design the phone screen first.
+- The wire types in `web/src/protocol.ts` mirror `internal/room/view.go` and
+  `internal/server/ws.go`. Change them together.
+- The content security policy in `internal/server/server.go` allows this
+  origin plus the YouTube player. A new external host needs an entry there.
+- A speaker must be turned on by a tap. Browsers refuse sound otherwise, so
+  the server forgets a speaker when its connection drops.
 
 ## Conventions
 

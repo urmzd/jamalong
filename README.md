@@ -31,24 +31,50 @@ provider.
 
 ## Quick Start
 
-Requires Go 1.27 or newer.
+Requires Go 1.27 or newer, Node 24 or newer and pnpm 11.
 
 ```bash
 git clone https://github.com/urmzd/jamalong
 cd jamalong
 make init
-make check
+pnpm install
+pnpm run build
+make build
+./bin/jamalong -web web/dist
 ```
+
+Open http://127.0.0.1:8080, start a room, and tap **Play here** on the device
+that should make sound. Share the link or QR code. Anyone who opens it can
+paste a YouTube link into the queue.
+
+Behind HTTPS, add `-secure-cookies`.
+
+## How a room works
+
+| Piece     | Rule                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| Queue     | Fair by person: one track each per round, votes order tracks within a round                                   |
+| Roles     | The host controls everything. Collaborators control playback and the queue. Guests add, vote and vote to skip |
+| Join link | A 128-bit secret in the URL fragment. The host can replace it at any time                                     |
+| Clock     | The server keeps one clock. The lead speaker corrects it, every other speaker follows it                      |
+| Providers | YouTube links today. Each speaker plays from its own player                                                   |
 
 ## Development
 
-| Task | Command |
-| --- | --- |
-| Build | `make build` |
-| Test | `make test` |
-| Lint | `make lint` |
-| Format | `make fmt` |
-| Quality gate | `make check` |
+Run the server and the web app side by side. Vite serves the app on port 5173
+and proxies the API to the Go server.
+
+```bash
+./bin/jamalong
+pnpm run dev
+```
+
+| Task         | Go           | Web              |
+| ------------ | ------------ | ---------------- |
+| Test         | `make test`  | `pnpm test`      |
+| Lint         | `make lint`  | `pnpm run lint`  |
+| Format       | `make fmt`   | `pnpm run fmt`   |
+| Quality gate | `make check` | `pnpm run check` |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 

@@ -1,0 +1,15 @@
+packages:
+  - web
+
+# Skip versions published in the last 24h; most malicious releases are pulled
+# within that window.
+minimumReleaseAge: 1440
+
+# Deny by default. Allow a dependency's install script only when it needs one
+# and you have checked why; add a comment saying so.
+allowBuilds:
+  esbuild: true
+
+# Security pins live here, never in package.json ("pnpm.overrides" is ignored
+# by pnpm 11 and silently dropped from the lockfile).
+overrides: {}
