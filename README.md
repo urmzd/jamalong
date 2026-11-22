@@ -45,7 +45,7 @@ make build
 
 Open http://127.0.0.1:8080, start a room, and tap **Play here** on the device
 that should make sound. Share the link or QR code. Anyone who opens it can
-paste a YouTube link into the queue.
+paste a YouTube, Spotify or SoundCloud track link into the queue.
 
 Behind HTTPS, add `-secure-cookies`.
 
@@ -57,7 +57,7 @@ Behind HTTPS, add `-secure-cookies`.
 | Roles     | The host controls everything. Collaborators control playback and the queue. Guests add, vote and vote to skip |
 | Join link | A 128-bit secret in the URL fragment. The host can replace it at any time                                     |
 | Clock     | The server keeps one clock. The lead speaker corrects it, every other speaker follows it                      |
-| Providers | YouTube links today. Each speaker plays from its own player                                                   |
+| Providers | YouTube, Spotify and SoundCloud. Each speaker plays in the provider's embed, signed in to its own account     |
 
 ## Development
 

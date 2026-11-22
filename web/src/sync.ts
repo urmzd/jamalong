@@ -11,7 +11,7 @@ export interface PlayerSnapshot {
 
 export type SyncAction =
   | { kind: "stop" }
-  | { kind: "load"; itemId: string; videoId: string; startMs: number }
+  | { kind: "load"; itemId: string; provider: string; trackId: string; startMs: number }
   | { kind: "pause" }
   | { kind: "play" }
   | { kind: "seek"; toMs: number };
@@ -38,7 +38,8 @@ export function decide(
     const load: SyncAction = {
       kind: "load",
       itemId: now.item.id,
-      videoId: now.item.track.provider_id,
+      provider: now.item.track.provider,
+      trackId: now.item.track.provider_id,
       startMs: expected,
     };
     return now.paused_at_ms === null ? [load] : [load, { kind: "pause" }];

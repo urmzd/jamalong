@@ -1,5 +1,7 @@
 // A thin, typed layer over the YouTube IFrame Player API.
 
+import type { Player, PlayerFactory } from "./player.ts";
+
 interface YTPlayer {
   loadVideoById(opts: { videoId: string; startSeconds: number }): void;
   playVideo(): void;
@@ -93,3 +95,33 @@ export async function createPlayer(el: HTMLElement, events: PlayerEvents): Promi
 }
 
 export type { YTPlayer };
+
+/** The YouTube player behind the Player interface. */
+export const createYouTubePlayer: PlayerFactory = async (mount, events) => {
+  const el = document.createElement("div");
+  mount.append(el);
+  const yt = await createPlayer(el, {
+    onState: (state) => {
+      if (state === YT_ENDED) events.onEnded();
+    },
+    onError: () => events.onError(),
+  });
+  return {
+    load: (trackId, startMs) =>
+      yt.loadVideoById({ videoId: trackId, startSeconds: startMs / 1000 }),
+    play: () => yt.playVideo(),
+    pause: () => yt.pauseVideo(),
+    seek: (ms) => yt.seekTo(ms / 1000, true),
+    stop: () => yt.stopVideo(),
+    state: () => {
+      const state = yt.getPlayerState();
+      return {
+        playing: state === YT_PLAYING || state === YT_BUFFERING,
+        buffering: state === YT_BUFFERING,
+        positionMs: yt.getCurrentTime() * 1000,
+        durationMs: yt.getDuration() * 1000,
+      };
+    },
+    destroy: () => yt.destroy(),
+  } satisfies Player;
+};

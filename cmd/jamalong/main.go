@@ -41,7 +41,7 @@ func run(addr, web string, secure bool, log *slog.Logger) error {
 	defer stop()
 
 	srv := server.New(server.Config{
-		Resolver:      provider.YouTube{},
+		Resolver:      provider.Chain{provider.YouTube{}, provider.Spotify{}, provider.SoundCloud{}},
 		WebDir:        web,
 		SecureCookies: secure,
 		Logger:        log,

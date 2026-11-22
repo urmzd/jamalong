@@ -225,7 +225,7 @@ function NowPlaying(props: {
         {media}
         <div className="now-text">
           <h1>Nothing is playing</h1>
-          <p className="muted">Add a YouTube link to start the queue.</p>
+          <p className="muted">Add a YouTube, Spotify or SoundCloud link to start the queue.</p>
         </div>
         <div className="now-controls">{speakerToggle}</div>
       </section>
@@ -356,8 +356,8 @@ function AddBar({ onAdd }: { onAdd(url: string): void }) {
         type="url"
         name="link"
         inputMode="url"
-        aria-label="YouTube link"
-        placeholder="Paste a YouTube link"
+        aria-label="Track link"
+        placeholder="Paste a track link"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         enterKeyHint="send"
