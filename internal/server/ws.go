@@ -275,7 +275,8 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		}
 		after := sess.room.Snapshot(s.cfg.Now())
 		s.cfg.Logger.Info("track added", "room", sess.room.ID(), "by", sess.room.Nickname(by),
-			"title", track.Title, "provider", track.Provider, "queue", after.Queue)
+			"title", track.Title, "artist", track.Artist, "provider", track.Provider,
+			"provider_id", track.ProviderID, "link", in.URL, "queue", after.Queue)
 		logChanges(s.cfg.Logger, sess.room.ID(), before, after, "add by "+sess.room.Nickname(by)+" while nothing was playing")
 		sess.broadcast()
 		return nil
