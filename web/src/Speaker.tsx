@@ -106,7 +106,12 @@ export function Speaker({ session }: { session: RoomSession }) {
         // Events from a player that is not on screen belong to a track the
         // room has left.
         onEnded: () => active === provider && reportEnded(loaded, `${provider}-ended`),
-        onError: () => active === provider && reportEnded(loaded, `${provider}-error`),
+        onError: (code?: number) =>
+          active === provider &&
+          reportEnded(
+            loaded,
+            code === undefined ? `${provider}-error` : `${provider}-error-${code}`,
+          ),
         onNote: (event: string, positionMs: number, durationMs: number) =>
           active === provider && note(event, positionMs, durationMs),
       };

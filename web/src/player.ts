@@ -26,8 +26,8 @@ export interface Player {
 export interface PlayerEvents {
   /** The track reached its end. */
   onEnded(): void;
-  /** The track cannot play here. */
-  onError(): void;
+  /** The track cannot play here. code is the provider's error code, if any. */
+  onError(code?: number): void;
   /** Something worth a line in the server log, for example a rejected end. */
   onNote?(event: string, positionMs: number, durationMs: number): void;
 }

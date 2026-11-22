@@ -104,7 +104,8 @@ export const createYouTubePlayer: PlayerFactory = async (mount, events) => {
     onState: (state) => {
       if (state === YT_ENDED) events.onEnded();
     },
-    onError: () => events.onError(),
+    // 101 and 150 mean the owner blocks playback outside YouTube.
+    onError: (code) => events.onError(code),
   });
   return {
     load: (trackId, startMs) =>
