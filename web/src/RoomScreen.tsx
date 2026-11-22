@@ -95,6 +95,27 @@ export function RoomScreen({ roomId }: { roomId: string }) {
       )}
 
       <main className="col">
+        {session.requests.map((r) => (
+          <section key={r.id} className="card request" aria-label={`${r.nickname} wants to join`}>
+            <p className="row-title">{r.nickname} wants to join</p>
+            <div className="request-actions">
+              <button
+                className="btn"
+                type="button"
+                onClick={() => send({ type: "deny", request_id: r.id })}
+              >
+                Decline
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => send({ type: "admit", request_id: r.id })}
+              >
+                Let in
+              </button>
+            </div>
+          </section>
+        ))}
         <NowPlaying
           session={session}
           room={room}

@@ -1,5 +1,14 @@
-import { type FormEvent, type ReactNode, useState } from "react";
-import { ApiError, createRoom, joinRoom } from "./api.ts";
+import { Users } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import {
+  ApiError,
+  askToJoin,
+  checkRequest,
+  createRoom,
+  joinRoom,
+  listRooms,
+  type OpenRoom,
+} from "./api.ts";
 
 const NAME_KEY = "jamalong.nickname";
 
@@ -93,7 +102,53 @@ export function Home() {
           location.assign(`/r/${id}`);
         }}
       />
+      <OpenRooms />
     </Shell>
+  );
+}
+
+const LIST_EVERY_MS = 10_000;
+
+/** Rooms with people in them. Joining one asks the host. */
+function OpenRooms() {
+  const [rooms, setRooms] = useState<OpenRoom[]>([]);
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      listRooms()
+        .then((r) => live && setRooms(r))
+        .catch(() => {});
+    load();
+    const timer = setInterval(load, LIST_EVERY_MS);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  if (rooms.length === 0) return null;
+  return (
+    <section className="card queue" aria-label="Open rooms">
+      <h2>Open rooms</h2>
+      <ol>
+        {rooms.map((r) => (
+          <li key={r.id} className="row">
+            <div className="row-text">
+              <p className="row-title">{r.host}'s room</p>
+              {r.now_playing && <p className="muted small">{r.now_playing}</p>}
+            </div>
+            <span className="count">
+              <Users aria-hidden size={16} />
+              {r.listening}
+              <span className="sr-only"> here</span>
+            </span>
+            <a className="btn" href={`/r/${r.id}`}>
+              Ask to join
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -106,6 +161,92 @@ export function Join(props: { roomId: string; secret: string; onJoined(): void }
         submit={async (name) => {
           await joinRoom(props.roomId, props.secret, name);
           props.onJoined();
+        }}
+      />
+    </Shell>
+  );
+}
+
+const POLL_MS = 2_000;
+
+function requestKey(roomId: string): string {
+  return `jamalong.request.${roomId}`;
+}
+
+function readRequest(roomId: string): string {
+  try {
+    return sessionStorage.getItem(requestKey(roomId)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeRequest(roomId: string, token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(requestKey(roomId), token);
+    else sessionStorage.removeItem(requestKey(roomId));
+  } catch {
+    // Without storage, a reload means asking again.
+  }
+}
+
+/**
+ * A visitor with no link asks the host to let them in, then waits. The
+ * request survives a reload of this tab.
+ */
+export function AskToJoin(props: { roomId: string; onJoined(): void }) {
+  const { roomId, onJoined } = props;
+  const [token, setToken] = useState(() => readRequest(roomId));
+  const [answer, setAnswer] = useState<"denied" | "expired" | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    const poll = async () => {
+      try {
+        const result = await checkRequest(roomId, token);
+        if (!live || result === "waiting") return;
+        writeRequest(roomId, null);
+        if (result === "admitted") onJoined();
+        else setAnswer(result);
+      } catch {
+        // A network blip; the next poll tries again.
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, POLL_MS);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [roomId, token, onJoined]);
+
+  if (answer === "denied") return <Notice title="The host did not let you in" />;
+  if (answer === "expired") {
+    return <Notice title="This room has ended" body="Or your request expired. Start your own." />;
+  }
+  if (token) {
+    return (
+      <Shell>
+        <div className="card entry-card" role="status">
+          <h1>Waiting for the host</h1>
+          <p className="muted">The room opens here when the host lets you in.</p>
+          <a className="btn" href="/" onClick={() => writeRequest(roomId, null)}>
+            Cancel
+          </a>
+        </div>
+      </Shell>
+    );
+  }
+  return (
+    <Shell>
+      <NameForm
+        title="Ask to join"
+        action="Ask to join"
+        submit={async (name) => {
+          const t = await askToJoin(roomId, name);
+          writeRequest(roomId, t);
+          setToken(t);
         }}
       />
     </Shell>

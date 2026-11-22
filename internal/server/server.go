@@ -61,6 +61,7 @@ type Server struct {
 	rooms    map[string]*session
 	creates  *limiter
 	joins    *limiter
+	polls    *limiter
 	upgrades *limiter
 }
 
@@ -73,8 +74,10 @@ type session struct {
 	secret string
 	// tokens maps the SHA-256 of a session token to a member ID, so a memory
 	// dump does not yield usable cookies.
-	tokens    map[[sha256.Size]byte]string
-	conns     map[*conn]struct{}
+	tokens map[[sha256.Size]byte]string
+	conns  map[*conn]struct{}
+	// requests maps the SHA-256 of a visitor's request token to the request.
+	requests  map[[sha256.Size]byte]*joinRequest
 	idleSince time.Time
 	clock     func() time.Time
 }
@@ -92,8 +95,11 @@ func New(cfg Config) *Server {
 		rooms: map[string]*session{},
 		// Limits are per IP and a whole party shares one, so they only guard
 		// against resource abuse. The join secret is what guards the room.
-		creates:  newLimiter(30, time.Minute),
-		joins:    newLimiter(300, time.Minute),
+		creates: newLimiter(30, time.Minute),
+		joins:   newLimiter(300, time.Minute),
+		// A waiting visitor polls every 2s, and behind a tunnel every
+		// visitor shares one address.
+		polls:    newLimiter(3000, time.Minute),
 		upgrades: newLimiter(600, time.Minute),
 	}
 }
@@ -103,7 +109,10 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusOK, map[string]bool{"ok": true}) })
 	mux.HandleFunc("POST /api/rooms", s.handleCreate)
+	mux.HandleFunc("GET /api/rooms", s.handleList)
 	mux.HandleFunc("POST /api/rooms/{id}/join", s.handleJoin)
+	mux.HandleFunc("POST /api/rooms/{id}/requests", s.handleRequest)
+	mux.HandleFunc("POST /api/rooms/{id}/requests/claim", s.handleClaim)
 	mux.HandleFunc("GET /api/rooms/{id}/session", s.handleSession)
 	mux.HandleFunc("GET /api/rooms/{id}/ws", s.handleWS)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
@@ -141,6 +150,9 @@ func (s *Server) sweep(now time.Time) {
 	for _, sess := range all {
 		sess.mu.Lock()
 		before := sess.room.Snapshot(now)
+		if sess.pruneRequests(now) {
+			sess.broadcast()
+		}
 		if sess.room.Tick(now) {
 			logChanges(s.cfg.Logger, sess.room.ID(), before, sess.room.Snapshot(now),
 				"stall timer: the lead never reported the end")
@@ -163,6 +175,7 @@ func (s *Server) sweep(now time.Time) {
 	}
 	s.creates.prune(now)
 	s.joins.prune(now)
+	s.polls.prune(now)
 	s.upgrades.prune(now)
 }
 
@@ -191,6 +204,9 @@ func newRoomID() string {
 
 // newJoinSecret returns the 128-bit secret carried in a room link.
 func newJoinSecret() string { return randomToken(16) }
+
+// roomIDKey is the JSON key that carries a room ID in API replies.
+const roomIDKey = "room_id"
 
 func cookieName(roomID string) string { return "jam_" + roomID }
 
@@ -252,7 +268,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	sess := &session{
 		room: rm, host: host, secret: newJoinSecret(),
 		tokens: map[[sha256.Size]byte]string{}, conns: map[*conn]struct{}{},
-		clock: s.cfg.Now,
+		requests: map[[sha256.Size]byte]*joinRequest{},
+		clock:    s.cfg.Now,
 	}
 	s.rooms[id] = sess
 	s.mu.Unlock()
@@ -261,7 +278,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	s.issue(w, sess, host)
 	sess.mu.Unlock()
 	s.cfg.Logger.Info("room created", "room", id, "host", body.Nickname)
-	writeJSON(w, http.StatusCreated, map[string]string{"room_id": id})
+	writeJSON(w, http.StatusCreated, map[string]string{roomIDKey: id})
 }
 
 func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
@@ -291,7 +308,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	s.issue(w, sess, member)
 	sess.broadcast()
 	s.cfg.Logger.Info("member joined", "room", sess.room.ID(), "nickname", body.Nickname)
-	writeJSON(w, http.StatusCreated, map[string]string{"room_id": sess.room.ID()})
+	writeJSON(w, http.StatusCreated, map[string]string{roomIDKey: sess.room.ID()})
 }
 
 func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {

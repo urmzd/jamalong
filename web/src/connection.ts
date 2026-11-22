@@ -1,6 +1,6 @@
 import { hasSession } from "./api.ts";
 import { ClockSync } from "./clock.ts";
-import type { Command, Room, ServerMessage } from "./protocol.ts";
+import type { Command, JoinRequest, Room, ServerMessage } from "./protocol.ts";
 
 export type Status = "connecting" | "open" | "reconnecting";
 
@@ -8,7 +8,7 @@ export type Status = "connecting" | "open" | "reconnecting";
 export type Closed = "kicked" | "ended" | "gone" | "too_many_tabs";
 
 export interface Handlers {
-  onState(room: Room, joinSecret: string | undefined): void;
+  onState(room: Room, joinSecret: string | undefined, requests: JoinRequest[]): void;
   onError(message: string): void;
   onStatus(status: Status): void;
   onClosed(reason: Closed): void;
@@ -69,7 +69,7 @@ export class Connection {
       const msg = JSON.parse(String(event.data)) as ServerMessage;
       if (msg.type === "state") {
         this.#clock.seed(msg.server_ms, Date.now());
-        this.#handlers.onState(msg.room, msg.join_secret);
+        this.#handlers.onState(msg.room, msg.join_secret, msg.requests ?? []);
       } else if (msg.type === "pong") {
         this.#clock.sample(msg.t0, Date.now(), msg.server_ms);
       } else {

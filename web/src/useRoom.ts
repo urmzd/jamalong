@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Closed, Connection, type Status } from "./connection.ts";
-import type { Command, Room } from "./protocol.ts";
+import type { Command, JoinRequest, Room } from "./protocol.ts";
 
 export interface RoomSession {
   room: Room | null;
   /** Present for the host only. */
   joinSecret: string | undefined;
+  /** Visitors waiting to be let in. Present for the host only. */
+  requests: JoinRequest[];
   status: Status;
   closed: Closed | null;
   /** The latest error from the server, cleared after a few seconds. */
@@ -26,6 +28,7 @@ function sentence(text: string): string {
 export function useRoom(roomId: string): RoomSession {
   const [room, setRoom] = useState<Room | null>(null);
   const [joinSecret, setJoinSecret] = useState<string>();
+  const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [status, setStatus] = useState<Status>("connecting");
   const [closed, setClosed] = useState<Closed | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +37,10 @@ export function useRoom(roomId: string): RoomSession {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const c = new Connection(roomId, {
-      onState: (next, secret) => {
+      onState: (next, secret, waiting) => {
         setRoom(next);
         setJoinSecret(secret);
+        setRequests(waiting);
       },
       onError: (message) => {
         setError(sentence(message));
@@ -55,5 +59,5 @@ export function useRoom(roomId: string): RoomSession {
 
   const send = useCallback((cmd: Command) => conn.current?.send(cmd), []);
   const serverNow = useCallback(() => conn.current?.serverNow() ?? Date.now(), []);
-  return { room, joinSecret, status, closed, error, send, serverNow };
+  return { room, joinSecret, requests, status, closed, error, send, serverNow };
 }

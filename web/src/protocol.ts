@@ -48,8 +48,15 @@ export interface Room {
   now: Now | null;
 }
 
+/** A visitor waiting for the host to let them in. Sent to the host only. */
+export interface JoinRequest {
+  id: string;
+  nickname: string;
+}
+
 export type Command =
   | { type: "add_url"; url: string }
+  | { type: "admit" | "deny"; request_id: string }
   | { type: "remove" | "vote"; item_id: string }
   | { type: "skip" | "play" | "pause" | "rotate_link" | "end" }
   | { type: "seek"; position_ms: number }
@@ -68,6 +75,12 @@ export type Command =
   | { type: "ping"; t0: number };
 
 export type ServerMessage =
-  | { type: "state"; room: Room; join_secret?: string; server_ms: number }
+  | {
+      type: "state";
+      room: Room;
+      join_secret?: string;
+      requests?: JoinRequest[];
+      server_ms: number;
+    }
   | { type: "error"; code: string; message: string; ref?: string }
   | { type: "pong"; t0: number; server_ms: number };

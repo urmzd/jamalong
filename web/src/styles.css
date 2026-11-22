@@ -131,6 +131,7 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   background: var(--surface);
+  color: var(--ink);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -481,6 +482,40 @@ input::placeholder {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.count {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--s1);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+/* A visitor waiting for the host. */
+
+.request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.request-actions {
+  display: flex;
+  gap: var(--s2);
 }
 
 /* Invite. */

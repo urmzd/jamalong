@@ -36,6 +36,7 @@ type inbound struct {
 	Type       string           `json:"type"`
 	URL        string           `json:"url"`
 	ItemID     string           `json:"item_id"`
+	RequestID  string           `json:"request_id"`
 	MemberID   string           `json:"member_id"`
 	Role       room.Role        `json:"role"`
 	On         bool             `json:"on"`
@@ -52,7 +53,9 @@ type stateMsg struct {
 	Room room.View `json:"room"`
 	// JoinSecret is sent to the host only, so the host can show the link.
 	JoinSecret string `json:"join_secret,omitempty"`
-	ServerMS   int64  `json:"server_ms"`
+	// Requests are the visitors waiting for the host. Host only.
+	Requests []requestView `json:"requests,omitempty"`
+	ServerMS int64         `json:"server_ms"`
 }
 
 type errorMsg struct {
@@ -108,6 +111,7 @@ func (sess *session) broadcast() {
 		msg := stateMsg{Type: "state", Room: sess.room.View(c.member), ServerMS: now}
 		if c.member == sess.host {
 			msg.JoinSecret = sess.secret
+			msg.Requests = sess.waitingRequests()
 		}
 		sess.enqueue(c, msg)
 	}
@@ -292,6 +296,8 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		if err = sess.room.Kick(by, in.MemberID, now); err == nil {
 			sess.evict(in.MemberID, "kicked")
 		}
+	case "admit", "deny":
+		return s.answer(sess, by, in.RequestID, in.Type == "admit")
 	case "rotate_link":
 		if by != sess.host {
 			return fmt.Errorf("host only: %w", room.ErrForbidden)
