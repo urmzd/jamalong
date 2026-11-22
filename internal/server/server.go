@@ -377,7 +377,7 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 func securityHeaders(next http.Handler) http.Handler {
 	csp := strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' https://www.youtube.com https://open.spotify.com https://w.soundcloud.com",
+		"script-src 'self' https://www.youtube.com https://w.soundcloud.com",
 		"frame-src https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://w.soundcloud.com",
 		"img-src 'self' data: https://i.ytimg.com https://*.spotifycdn.com https://i.scdn.co https://*.sndcdn.com",
 		"style-src 'self' 'unsafe-inline'",

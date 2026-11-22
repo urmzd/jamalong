@@ -29,7 +29,7 @@ Keep these true in every change.
 | `cmd/jamalong`       | Server entry point and flags                                                |
 | `internal/room`      | Room state: members, fair queue, playback clock. No I/O, no wall clock      |
 | `internal/server`    | HTTP API, WebSocket, sessions, join secrets, rate limits                    |
-| `internal/provider`  | Turns a pasted link into a track. YouTube only so far                       |
+| `internal/provider`  | Turns a pasted link into a track: YouTube, Spotify, SoundCloud              |
 | `web/src`            | The PWA. `sync.ts` and `clock.ts` are pure and unit tested                  |
 | `web/src/styles.css` | Design tokens: color, type, spacing, radius. Change tokens, not rule values |
 | `showcase/`          | Screenshots of the real app, used in pull requests                          |
@@ -49,7 +49,11 @@ Keep these true in every change.
 - The wire types in `web/src/protocol.ts` mirror `internal/room/view.go` and
   `internal/server/ws.go`. Change them together.
 - The content security policy in `internal/server/server.go` allows this
-  origin plus the YouTube player. A new external host needs an entry there.
+  origin plus the YouTube, Spotify and SoundCloud players. A new external
+  host needs an entry there. Do not add `'unsafe-eval'`.
+- Each provider's player sits behind the `Player` interface in
+  `web/src/player.ts`. Playback stays inside the provider's embed, so the
+  listener's provider login stays in their browser.
 - A speaker must be turned on by a tap. Browsers refuse sound otherwise, so
   the server forgets a speaker when its connection drops.
 

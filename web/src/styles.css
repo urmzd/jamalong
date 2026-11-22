@@ -328,6 +328,22 @@ input::placeholder {
   background: var(--surface-2);
 }
 
+.player-stack {
+  width: 100%;
+  height: 100%;
+}
+
+.player[hidden] {
+  display: none;
+}
+
+/* The Spotify embed draws its compact card at a fixed 152px and leaves the
+   rest of a 16:9 frame empty, so the frame takes the card's height. */
+.media:has(.player-spotify:not([hidden])) {
+  aspect-ratio: auto;
+  height: 152px;
+}
+
 .artwork,
 .player,
 .player iframe {

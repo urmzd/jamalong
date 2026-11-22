@@ -57,7 +57,7 @@ const lead = { lead: true, seenSeekSeq: 0 };
 
 test("a speaker loads the current item at the clock position", () => {
   assert.deepEqual(decide(now(), 31_000, idle, follower), [
-    { kind: "load", itemId: "item-1", videoId: "vid", startMs: 30_000 },
+    { kind: "load", itemId: "item-1", provider: "youtube", trackId: "vid", startMs: 30_000 },
   ]);
   assert.deepEqual(
     decide(now({ paused_at_ms: 2_000 }), 31_000, idle, follower).map((a) => a.kind),
