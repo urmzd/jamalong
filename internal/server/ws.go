@@ -46,6 +46,9 @@ type inbound struct {
 	T0         float64          `json:"t0"`
 	// Reason says why a speaker reported a track ended. It is only logged.
 	Reason string `json:"reason"`
+	// Event and Provider describe a speaker's player event. Only logged.
+	Event    string `json:"event"`
+	Provider string `json:"provider"`
 }
 
 type stateMsg struct {
@@ -242,6 +245,16 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 	switch in.Type {
 	case "ping":
 		s.reply(sess, c, pongMsg{Type: "pong", T0: in.T0, ServerMS: now.UnixMilli()})
+		return nil
+	case "player":
+		sess.mu.Lock()
+		who := sess.room.Nickname(by)
+		snap := sess.room.Snapshot(now)
+		sess.mu.Unlock()
+		s.cfg.Logger.Info("player", "room", sess.room.ID(), "member", who,
+			"event", reasonText(in.Event), "provider", reasonText(in.Provider),
+			"current", in.ItemID == snap.NowItem, "player_at_ms", in.PositionMS,
+			"player_duration_ms", in.DurationMS, "clock_ms", snap.PositionMS)
 		return nil
 	case "add_url":
 		if s.cfg.Resolver == nil {

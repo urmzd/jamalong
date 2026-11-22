@@ -1,13 +1,16 @@
 import { useEffect, useRef } from "react";
+import { positionMs } from "./clock.ts";
 import type { Player, PlayerFactory } from "./player.ts";
 import { createSoundCloudPlayer } from "./soundcloud.ts";
 import { createSpotifyPlayer } from "./spotify.ts";
-import { decide } from "./sync.ts";
+import { decide, FOLLOW_TOLERANCE_MS } from "./sync.ts";
 import type { RoomSession } from "./useRoom.ts";
 import { createYouTubePlayer } from "./youtube.ts";
 
 const TICK_MS = 500;
 const REPORT_MS = 2_000;
+/** How long a speaker waits before repeating a play or pause command. */
+const COMMAND_REPEAT_MS = 3_000;
 
 const FACTORIES: Record<string, PlayerFactory> = {
   youtube: createYouTubePlayer,
@@ -42,6 +45,31 @@ export function Speaker({ session }: { session: RoomSession }) {
     let finished: string | null = null;
     let seenSeekSeq = 0;
     let lastReport = 0;
+    // When play or pause was last sent. A player that is still buffering
+    // restarts its buffering on a repeated command, so a repeat waits.
+    let lastCommand = { kind: "", at: 0 };
+    const due = (kind: "play" | "pause") => {
+      const at = Date.now();
+      if (lastCommand.kind === kind && at - lastCommand.at < COMMAND_REPEAT_MS) return false;
+      lastCommand = { kind, at };
+      return true;
+    };
+    // The lead has been within tolerance of the clock on this track.
+    let leadSynced = false;
+    // The last playing state sent to the log, to log changes only.
+    let wasPlaying: boolean | null = null;
+
+    // One line in the server log about what this device's player did.
+    const note = (event: string, positionMs: number, durationMs: number) => {
+      latest.current.send({
+        type: "player",
+        event,
+        provider: active ?? "",
+        item_id: loaded ?? "",
+        position_ms: Math.round(positionMs),
+        duration_ms: Math.round(durationMs),
+      });
+    };
 
     const isLead = () => {
       const room = latest.current.room;
@@ -79,6 +107,8 @@ export function Speaker({ session }: { session: RoomSession }) {
         // room has left.
         onEnded: () => active === provider && reportEnded(loaded, `${provider}-ended`),
         onError: () => active === provider && reportEnded(loaded, `${provider}-error`),
+        onNote: (event: string, positionMs: number, durationMs: number) =>
+          active === provider && note(event, positionMs, durationMs),
       };
       if (!factory) {
         created.failed = true;
@@ -117,7 +147,7 @@ export function Speaker({ session }: { session: RoomSession }) {
         now,
         serverNow(),
         { itemId: loaded, playing: state.playing, positionMs: state.positionMs },
-        { lead, seenSeekSeq },
+        { lead, seenSeekSeq, leadSynced },
       );
       // A tick that loads a track has a snapshot of the previous one, so it
       // reports nothing.
@@ -136,10 +166,14 @@ export function Speaker({ session }: { session: RoomSession }) {
           if (active !== action.provider) current?.stop();
           active = action.provider;
           show(active);
-          slot.player.load(action.trackId, action.startMs);
+          slot.player.load(action.trackId, action.startMs, action.durationMs);
           loaded = action.itemId;
           finished = null;
           switched = true;
+          leadSynced = false;
+          wasPlaying = null;
+          lastCommand = { kind: "play", at: Date.now() };
+          note("load", action.startMs, action.durationMs);
           continue;
         }
         const player = active ? slots.get(active)?.player : null;
@@ -150,18 +184,29 @@ export function Speaker({ session }: { session: RoomSession }) {
             loaded = null;
             break;
           case "seek":
+            // A seek the room did not ask for is the lead leaving a glitch.
+            if (lead && now?.seek_seq === seenSeekSeq)
+              note("resync", state.positionMs, state.durationMs);
             player.seek(action.toMs);
             finished = null;
             break;
           case "play":
-            player.play();
+            if (due("play")) player.play();
             break;
           case "pause":
-            player.pause();
+            if (due("pause")) player.pause();
             break;
         }
       }
       if (now) seenSeekSeq = now.seek_seq;
+      if (now && !switched && loaded === now.item.id) {
+        const drift = Math.abs(state.positionMs - positionMs(now, serverNow()));
+        if (state.playing && drift <= FOLLOW_TOLERANCE_MS) leadSynced = true;
+        if (wasPlaying !== null && wasPlaying !== state.playing) {
+          note(state.playing ? "playing" : "paused", state.positionMs, state.durationMs);
+        }
+        wasPlaying = state.playing;
+      }
       // What this speaker is doing, for tests and for anyone inspecting it.
       const stack = holder.current;
       if (stack) {
@@ -172,7 +217,7 @@ export function Speaker({ session }: { session: RoomSession }) {
 
       // Only a player that has started reports, so a track still loading
       // does not pull the clock back to zero.
-      const due = Date.now() - lastReport >= REPORT_MS;
+      const reportDue = Date.now() - lastReport >= REPORT_MS;
       if (
         lead &&
         !switched &&
@@ -180,7 +225,7 @@ export function Speaker({ session }: { session: RoomSession }) {
         now &&
         loaded === now.item.id &&
         now.paused_at_ms === null &&
-        due
+        reportDue
       ) {
         lastReport = Date.now();
         send({
