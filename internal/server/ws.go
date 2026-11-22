@@ -33,10 +33,12 @@ type conn struct {
 // inbound is every command a client can send. Type selects which fields are
 // read.
 type inbound struct {
-	Type       string           `json:"type"`
-	URL        string           `json:"url"`
-	ItemID     string           `json:"item_id"`
-	RequestID  string           `json:"request_id"`
+	Type      string `json:"type"`
+	URL       string `json:"url"`
+	ItemID    string `json:"item_id"`
+	RequestID string `json:"request_id"`
+	// Index is where a moved item goes, counted from 0 for the next track.
+	Index      int              `json:"index"`
 	MemberID   string           `json:"member_id"`
 	Role       room.Role        `json:"role"`
 	On         bool             `json:"on"`
@@ -292,6 +294,8 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		err = sess.room.Remove(by, in.ItemID)
 	case "vote":
 		err = sess.room.Vote(by, in.ItemID)
+	case "move":
+		err = sess.room.Move(by, in.ItemID, in.Index)
 	case "skip":
 		err = sess.room.Skip(by, now)
 	case "play":
@@ -361,6 +365,8 @@ func (s *Server) logCommand(sess *session, by string, in inbound, before, after 
 	case "seek":
 		s.cfg.Logger.Info("seek", "room", sess.room.ID(), "by", who, "track", after.NowTitle,
 			"from_ms", before.PositionMS, "to_ms", in.PositionMS)
+	case "move":
+		s.cfg.Logger.Info("move", "room", sess.room.ID(), "by", who, "item", in.ItemID, "to", in.Index)
 	case "remove", "vote", "set_role", "kick":
 		s.cfg.Logger.Info(in.Type, "room", sess.room.ID(), "by", who, "item", in.ItemID, "member", in.MemberID)
 	}
