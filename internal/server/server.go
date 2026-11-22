@@ -373,13 +373,13 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 }
 
 // securityHeaders sets a content security policy that allows only this
-// origin plus the YouTube player the speaker embeds.
+// origin plus the YouTube, Spotify and SoundCloud players the speaker embeds.
 func securityHeaders(next http.Handler) http.Handler {
 	csp := strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' https://www.youtube.com",
-		"frame-src https://www.youtube.com https://www.youtube-nocookie.com",
-		"img-src 'self' data: https://i.ytimg.com",
+		"script-src 'self' https://www.youtube.com https://open.spotify.com https://w.soundcloud.com",
+		"frame-src https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://w.soundcloud.com",
+		"img-src 'self' data: https://i.ytimg.com https://*.spotifycdn.com https://i.scdn.co https://*.sndcdn.com",
 		"style-src 'self' 'unsafe-inline'",
 		"connect-src 'self'",
 		"base-uri 'none'",

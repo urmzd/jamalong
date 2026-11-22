@@ -34,8 +34,8 @@ type YouTube struct {
 // YouTubeVideoID extracts the video ID from a YouTube link. It accepts watch,
 // short, embed, live and youtu.be forms.
 func YouTubeVideoID(link string) (string, bool) {
-	u, err := url.Parse(strings.TrimSpace(link))
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+	u, ok := webURL(link)
+	if !ok {
 		return "", false
 	}
 	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
@@ -71,7 +71,7 @@ func (y YouTube) Resolve(ctx context.Context, link string) (room.Track, error) {
 	}
 	// The request URL is built from the validated ID only, never from the
 	// member's link.
-	q := url.Values{"format": {"json"}, "url": {"https://www.youtube.com/watch?v=" + id}}
+	q := url.Values{"format": {"json"}, oembedURL: {"https://www.youtube.com/watch?v=" + id}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+q.Encode(), nil)
 	if err != nil {
 		return room.Track{}, fmt.Errorf("youtube: %w", err)
