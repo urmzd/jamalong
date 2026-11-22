@@ -48,11 +48,19 @@ export function Speaker({ session }: { session: RoomSession }) {
       return !!room && room.lead === room.you;
     };
     // The end of a track, or a track that will not play, moves the queue on.
-    const reportEnded = (itemId: string | null) => {
+    // The reason and the player's position go to the server log.
+    const reportEnded = (itemId: string | null, reason: string) => {
       finished = itemId;
-      if (itemId && isLead()) {
-        latest.current.send({ type: "report", item_id: itemId, state: "ended" });
-      }
+      if (!itemId || !isLead()) return;
+      const state = (active ? slots.get(active)?.player : null)?.state();
+      latest.current.send({
+        type: "report",
+        item_id: itemId,
+        state: "ended",
+        reason,
+        position_ms: Math.round(state?.positionMs ?? 0),
+        duration_ms: Math.round(state?.durationMs ?? 0),
+      });
     };
 
     // Returns the slot for a provider, starting its player on first use.
@@ -69,8 +77,8 @@ export function Speaker({ session }: { session: RoomSession }) {
       const events = {
         // Events from a player that is not on screen belong to a track the
         // room has left.
-        onEnded: () => active === provider && reportEnded(loaded),
-        onError: () => active === provider && reportEnded(loaded),
+        onEnded: () => active === provider && reportEnded(loaded, `${provider}-ended`),
+        onError: () => active === provider && reportEnded(loaded, `${provider}-error`),
       };
       if (!factory) {
         created.failed = true;
@@ -121,7 +129,7 @@ export function Speaker({ session }: { session: RoomSession }) {
             // This device cannot play the provider. The lead skips the track;
             // a follower stays quiet until the next one.
             current?.stop();
-            reportEnded(action.itemId);
+            reportEnded(action.itemId, `${action.provider}-unavailable`);
             break;
           }
           if (!slot.player) break; // still starting; try again next tick

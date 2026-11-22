@@ -57,16 +57,15 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
       durationMs: data.duration,
       atMs: performance.now(),
     };
-    if (playing) started = true;
-    // The embed reports the end in one of two ways. A preview, and a full
-    // track in our runs, sends position equal to duration while still
-    // "playing" and then goes quiet. Other builds pause at, or jump back
-    // from, the end.
+    // Started means audio is moving, not just that the embed said "not
+    // paused" while it buffers.
+    if (playing && !data.isBuffering && data.position > 0) started = true;
+    // A preview, and a full track in our runs, ends with position equal to
+    // duration while still "playing", then goes quiet. A pause close to the
+    // end counts too.
     const reachedEnd = data.duration > 0 && data.position >= data.duration;
     const pausedAtEnd =
-      wasPlaying &&
-      !playing &&
-      ((data.duration > 0 && data.position >= data.duration - END_SLACK_MS) || data.position === 0);
+      wasPlaying && !playing && data.duration > 0 && data.position >= data.duration - END_SLACK_MS;
     if (started && !ended && (reachedEnd || pausedAtEnd)) {
       ended = true;
       last = { ...last, playing: false };

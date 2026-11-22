@@ -43,6 +43,8 @@ type inbound struct {
 	PositionMS int64            `json:"position_ms"`
 	DurationMS int64            `json:"duration_ms"`
 	T0         float64          `json:"t0"`
+	// Reason says why a speaker reported a track ended. It is only logged.
+	Reason string `json:"reason"`
 }
 
 type stateMsg struct {
@@ -157,12 +159,15 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		_ = ws.Close(websocket.StatusPolicyViolation, "too_many_tabs")
 		return
 	}
+	connectBefore := sess.room.Snapshot(s.cfg.Now())
 	if err := sess.room.Connect(member, s.cfg.Now()); err != nil {
 		sess.mu.Unlock()
 		_ = ws.Close(websocket.StatusPolicyViolation, "gone")
 		return
 	}
 	sess.conns[c] = struct{}{}
+	logChanges(s.cfg.Logger, sess.room.ID(), connectBefore, sess.room.Snapshot(s.cfg.Now()),
+		"connected: "+sess.room.Nickname(member))
 	sess.broadcast()
 	sess.mu.Unlock()
 
@@ -210,7 +215,10 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	sess.mu.Lock()
 	delete(sess.conns, c)
 	sess.drop(c, "")
+	disconnectBefore := sess.room.Snapshot(s.cfg.Now())
 	sess.room.Disconnect(member, s.cfg.Now())
+	logChanges(s.cfg.Logger, sess.room.ID(), disconnectBefore, sess.room.Snapshot(s.cfg.Now()),
+		"disconnected: "+sess.room.Nickname(member))
 	sess.broadcast()
 	sess.mu.Unlock()
 	_ = ws.CloseNow()
@@ -244,9 +252,14 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		}
 		sess.mu.Lock()
 		defer sess.mu.Unlock()
+		before := sess.room.Snapshot(s.cfg.Now())
 		if _, err := sess.room.Add(by, track, s.cfg.Now()); err != nil {
 			return err
 		}
+		after := sess.room.Snapshot(s.cfg.Now())
+		s.cfg.Logger.Info("track added", "room", sess.room.ID(), "by", sess.room.Nickname(by),
+			"title", track.Title, "provider", track.Provider, "queue", after.Queue)
+		logChanges(s.cfg.Logger, sess.room.ID(), before, after, "add by "+sess.room.Nickname(by)+" while nothing was playing")
 		sess.broadcast()
 		return nil
 	}
@@ -254,6 +267,7 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 	before := sess.room.Version()
+	snapBefore := sess.room.Snapshot(now)
 	var err error
 	switch in.Type {
 	case "remove":
@@ -287,6 +301,7 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		return nil
 	case "end":
 		if err = sess.room.End(by); err == nil {
+			s.cfg.Logger.Info("room ended", "room", sess.room.ID(), "by", sess.room.Nickname(by))
 			for other := range sess.conns {
 				sess.drop(other, "ended")
 			}
@@ -300,7 +315,34 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		return err
 	}
 	if sess.room.Version() != before {
+		s.logCommand(sess, by, in, snapBefore, sess.room.Snapshot(now))
 		sess.broadcast()
 	}
 	return nil
+}
+
+// logCommand logs a command that changed the room, with what it changed.
+func (s *Server) logCommand(sess *session, by string, in inbound, before, after room.Snapshot) {
+	who := sess.room.Nickname(by)
+	cause := in.Type + " by " + who
+	var extra []any
+	switch in.Type {
+	case "report":
+		if in.State != room.StateEnded {
+			// A lead correcting the clock is routine. Log it only when it is large.
+			if d := after.PositionMS - before.PositionMS; d > 5000 || d < -5000 {
+				s.cfg.Logger.Info("clock moved by lead", "room", sess.room.ID(), "lead", who,
+					"track", after.NowTitle, "from_ms", before.PositionMS, "to_ms", after.PositionMS)
+			}
+			return
+		}
+		cause = "lead " + who + " reported the end"
+		extra = []any{"reason", reasonText(in.Reason), "player_at_ms", in.PositionMS, "player_duration_ms", in.DurationMS}
+	case "seek":
+		s.cfg.Logger.Info("seek", "room", sess.room.ID(), "by", who, "track", after.NowTitle,
+			"from_ms", before.PositionMS, "to_ms", in.PositionMS)
+	case "remove", "vote", "set_role", "kick":
+		s.cfg.Logger.Info(in.Type, "room", sess.room.ID(), "by", who, "item", in.ItemID, "member", in.MemberID)
+	}
+	logChanges(s.cfg.Logger, sess.room.ID(), before, after, cause, extra...)
 }

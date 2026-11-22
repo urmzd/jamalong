@@ -62,6 +62,8 @@ export type Command =
       state: "playing" | "buffering" | "ended";
       position_ms?: number;
       duration_ms?: number;
+      /** Why an ended report was sent. The server only logs it. */
+      reason?: string;
     }
   | { type: "ping"; t0: number };
 

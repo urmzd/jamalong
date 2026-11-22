@@ -140,7 +140,10 @@ func (s *Server) sweep(now time.Time) {
 
 	for _, sess := range all {
 		sess.mu.Lock()
+		before := sess.room.Snapshot(now)
 		if sess.room.Tick(now) {
+			logChanges(s.cfg.Logger, sess.room.ID(), before, sess.room.Snapshot(now),
+				"stall timer: the lead never reported the end")
 			sess.broadcast()
 		}
 		switch {
@@ -257,6 +260,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	sess.mu.Lock()
 	s.issue(w, sess, host)
 	sess.mu.Unlock()
+	s.cfg.Logger.Info("room created", "room", id, "host", body.Nickname)
 	writeJSON(w, http.StatusCreated, map[string]string{"room_id": id})
 }
 
@@ -286,6 +290,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.issue(w, sess, member)
 	sess.broadcast()
+	s.cfg.Logger.Info("member joined", "room", sess.room.ID(), "nickname", body.Nickname)
 	writeJSON(w, http.StatusCreated, map[string]string{"room_id": sess.room.ID()})
 }
 
