@@ -1,0 +1,574 @@
+/*
+ * jamalong design tokens. This file is the source of truth for color, type,
+ * spacing, radius and focus. Change a token here, not a value in a rule.
+ *
+ * Type: Manrope Variable, self-hosted through @fontsource-variable/manrope
+ * (SIL Open Font License). Four sizes, three weights.
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --surface-2: #f1ede7;
+  --line: #ddd6cc;
+  --ink: #1c1a17;
+  --ink-2: #5f574d;
+  --accent: #c2410c;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe6da;
+  --danger: #b42318;
+  --ok: #2f7d4f;
+  --focus: #1d4ed8;
+
+  --font: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --text-s: 0.875rem;
+  --text-m: 1rem;
+  --text-l: 1.25rem;
+  --text-xl: 1.625rem;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  --radius: 14px;
+  --radius-s: 10px;
+  --control: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151311;
+    --surface: #1f1c19;
+    --surface-2: #2a2622;
+    --line: #3d3832;
+    --ink: #f3efe9;
+    --ink-2: #b3a99c;
+    --accent: #ff8a4c;
+    --accent-ink: #1c1a17;
+    --accent-soft: #43281a;
+    --danger: #ff8f85;
+    --ok: #6fcf97;
+    --focus: #93c5fd;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 var(--text-m) / 1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p,
+ol,
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+h1 {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+h2 {
+  font-size: var(--text-l);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.small {
+  font-size: var(--text-s);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Controls: one height, one radius. */
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.btn,
+.icon-btn,
+select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  height: var(--control);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn,
+select {
+  padding: 0 var(--s4);
+}
+
+.icon-btn {
+  width: var(--control);
+  flex: none;
+  padding: 0;
+}
+
+.btn:hover,
+.icon-btn:hover,
+select:hover {
+  background: var(--surface-2);
+}
+
+.btn-primary,
+.icon-btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-primary:hover,
+.icon-btn-primary:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.btn-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+input:not([type="range"]) {
+  width: 100%;
+  min-width: 0;
+  height: var(--control);
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+}
+
+input::placeholder {
+  color: var(--ink-2);
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--s4);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ink);
+  font-size: var(--text-l);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+/* Entry: home, join and notices. */
+
+.entry {
+  display: grid;
+  gap: var(--s5);
+  width: min(100% - 2 * var(--s4), 420px);
+  margin: 0 auto;
+  padding-top: 12vh;
+}
+
+.entry-card {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s5);
+}
+
+.field {
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.field input {
+  font-size: var(--text-m);
+  font-weight: 500;
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+/* Room. */
+
+.room {
+  width: min(100% - 2 * var(--s4), 560px);
+  margin: 0 auto;
+  padding-bottom: var(--s6);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+}
+
+.bar-actions {
+  display: flex;
+  gap: var(--s2);
+}
+
+.banner {
+  margin-bottom: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  font-size: var(--text-s);
+  font-weight: 600;
+  text-align: center;
+}
+
+.col {
+  display: grid;
+  gap: var(--s4);
+  align-content: start;
+}
+
+/*
+ * A grid track defaults to at least its content's width, so one long
+ * unwrapped title would push the page wider than the phone. Every stacked
+ * grid gets a single track that is allowed to shrink.
+ */
+.col,
+.now,
+.queue,
+.entry,
+.entry-card,
+.sheet-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+ * One column at every width. On a phone the invite lives behind the header
+ * button. On a wide screen the host's QR code stays up for people walking in.
+ */
+.invite-card {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .invite-card {
+    display: block;
+  }
+
+  .invite-toggle {
+    display: none;
+  }
+}
+
+.now {
+  display: grid;
+  gap: var(--s4);
+}
+
+.media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+}
+
+.artwork,
+.player,
+.player iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+
+.now-text {
+  display: grid;
+  gap: var(--s1);
+}
+
+/* Video titles run long. Two lines keep the controls on the first screen. */
+.now-text h1 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.waiting {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-s);
+  background: var(--accent-soft);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.time {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress progress,
+.progress input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.progress progress {
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.progress progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+
+.progress progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.progress progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.now-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.transport {
+  display: flex;
+  gap: var(--s2);
+}
+
+.add {
+  display: flex;
+  gap: var(--s2);
+}
+
+.queue {
+  display: grid;
+  gap: var(--s3);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.row .btn {
+  flex: none;
+  padding: 0 var(--s3);
+}
+
+.thumb {
+  flex: none;
+  width: 64px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-text .small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Invite. */
+
+.invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s4);
+}
+
+.qr {
+  flex: none;
+  width: 168px;
+  height: 168px;
+  border-radius: var(--radius-s);
+}
+
+.invite-actions {
+  display: grid;
+  flex: 1;
+  gap: var(--s2);
+  min-width: 160px;
+}
+
+/* Sheets: native dialogs, pinned to the bottom on a phone. */
+
+.sheet {
+  width: min(100%, 480px);
+  max-width: 100%;
+  max-height: 85dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+@media (min-width: 600px) {
+  .sheet {
+    margin: auto;
+    border-radius: var(--radius);
+  }
+}
+
+.sheet::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.sheet-body {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4);
+}
+
+.sheet-head,
+.sheet-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.sheet-foot {
+  justify-content: flex-end;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--ink-2);
+  border-radius: 50%;
+}
+
+.dot-on {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.toasts {
+  position: fixed;
+  inset: auto var(--s4) var(--s4);
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: 480px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-s);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .icon-btn {
+    transition: background-color 120ms;
+  }
+}
