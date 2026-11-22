@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ClockSync, formatTime, positionMs } from "./clock.ts";
 import type { Now } from "./protocol.ts";
+import { plausibleLength } from "./spotify.ts";
 import { decide } from "./sync.ts";
 
 function now(over: Partial<Now> = {}): Now {
@@ -57,7 +58,14 @@ const lead = { lead: true, seenSeekSeq: 0 };
 
 test("a speaker loads the current item at the clock position", () => {
   assert.deepEqual(decide(now(), 31_000, idle, follower), [
-    { kind: "load", itemId: "item-1", provider: "youtube", trackId: "vid", startMs: 30_000 },
+    {
+      kind: "load",
+      itemId: "item-1",
+      provider: "youtube",
+      trackId: "vid",
+      startMs: 30_000,
+      durationMs: 0,
+    },
   ]);
   assert.deepEqual(
     decide(now({ paused_at_ms: 2_000 }), 31_000, idle, follower).map((a) => a.kind),
@@ -88,5 +96,37 @@ test("play and pause follow the room", () => {
   const playing = { itemId: "item-1", playing: true, positionMs: 3_000 };
   assert.deepEqual(decide(now({ paused_at_ms: 4_000 }), 31_000, playing, lead), [
     { kind: "pause" },
+  ]);
+});
+
+test("a lead that was on the clock and falls far behind jumps back", () => {
+  const n = now();
+  const at = 1_000 + 20_000; // the clock reads 20s
+  const player = { itemId: "item-1", playing: true, positionMs: 1_800 };
+  assert.deepEqual(decide(n, at, player, { lead: true, seenSeekSeq: 0, leadSynced: true }), [
+    { kind: "seek", toMs: 20_000 },
+  ]);
+  // A lead still starting up is not on the clock yet, so the clock waits for it.
+  assert.deepEqual(decide(n, at, player, { lead: true, seenSeekSeq: 0, leadSynced: false }), []);
+  // A small lag is buffering, not a glitch.
+  const close = { ...player, positionMs: 17_000 };
+  assert.deepEqual(decide(n, at, close, { lead: true, seenSeekSeq: 0, leadSynced: true }), []);
+});
+
+test("a Spotify end counts only at a believable length", () => {
+  assert.equal(plausibleLength(166_958, 166_958), true);
+  assert.equal(plausibleLength(29_713, 166_958), true); // preview
+  assert.equal(plausibleLength(19_645, 166_958), false); // the bogus end seen live
+  assert.equal(plausibleLength(19_645, 0), true); // nothing to compare with
+});
+
+test("a follower still starting is not sought", () => {
+  const n = now();
+  const at = 1_000 + 20_000;
+  const starting = { itemId: "item-1", playing: false, positionMs: 6_000 };
+  assert.deepEqual(decide(n, at, starting, { lead: false, seenSeekSeq: 0 }), [{ kind: "play" }]);
+  const playing = { ...starting, playing: true };
+  assert.deepEqual(decide(n, at, playing, { lead: false, seenSeekSeq: 0 }), [
+    { kind: "seek", toMs: 20_000 },
   ]);
 });

@@ -39,6 +39,9 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
   let queue: Command[] = [];
   let started = false;
   let ended = false;
+  let noted = false;
+  // The length the room knows for the loaded track, or 0.
+  let expectedMs = 0;
   let last = { playing: false, buffering: false, positionMs: 0, durationMs: 0, atMs: 0 };
 
   const post = (cmd: Command) => iframe.contentWindow?.postMessage(cmd, ORIGIN);
@@ -67,6 +70,18 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
     const pausedAtEnd =
       wasPlaying && !playing && data.duration > 0 && data.position >= data.duration - END_SLACK_MS;
     if (started && !ended && (reachedEnd || pausedAtEnd)) {
+      if (!plausibleLength(data.duration, expectedMs)) {
+        // A signed-in embed once reported duration equal to position at
+        // 0:19 of a 2:47 track. Trust the room's length and let the room's
+        // stall timer end the track if it really stopped.
+        if (!noted) events.onNote?.("spotify-bogus-end", data.position, data.duration);
+        noted = true;
+        // Treat the player as stopped: the lead stops reporting a frozen
+        // position, the room clock runs on, and the room's stall timer ends
+        // the track if it really stopped. A play command may also revive it.
+        last = { ...last, playing: false, durationMs: expectedMs };
+        return;
+      }
       ended = true;
       last = { ...last, playing: false };
       events.onEnded();
@@ -97,7 +112,9 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
   mount.append(iframe);
 
   const player: Player = {
-    load(trackId, startMs) {
+    load(trackId, startMs, knownMs) {
+      expectedMs = knownMs;
+      noted = false;
       const url = new URL(`${ORIGIN}/embed/track/${encodeURIComponent(trackId)}`);
       url.searchParams.set("utm_source", "iframe-api");
       const startS = Math.floor(startMs / 1000);
@@ -139,6 +156,9 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
         durationMs: last.durationMs,
       };
     },
+    setLength(ms) {
+      if (ms > 0) expectedMs = ms;
+    },
     destroy() {
       window.removeEventListener("message", onMessage);
       iframe.remove();
@@ -158,4 +178,14 @@ function isPlaybackState(v: unknown): v is PlaybackState {
   return (
     typeof p?.isPaused === "boolean" && Number.isFinite(p.position) && Number.isFinite(p.duration)
   );
+}
+
+/**
+ * Whether a length the embed reports can be the track's: close to the
+ * room's length, or a 30-second preview.
+ */
+export function plausibleLength(durationMs: number, expectedMs: number): boolean {
+  if (expectedMs <= 0) return true;
+  if (durationMs >= 25_000 && durationMs <= 31_000) return true;
+  return Math.abs(durationMs - expectedMs) <= Math.max(5_000, expectedMs * 0.05);
 }

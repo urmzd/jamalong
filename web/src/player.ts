@@ -10,21 +10,28 @@ export interface PlayerState {
 }
 
 export interface Player {
-  /** Loads a track and starts it at startMs. */
-  load(trackId: string, startMs: number): void;
+  /**
+   * Loads a track and starts it at startMs. expectedMs is the length the room
+   * knows, or 0, so a player can tell a real end from a bogus one.
+   */
+  load(trackId: string, startMs: number, expectedMs: number): void;
   play(): void;
   pause(): void;
   seek(ms: number): void;
   stop(): void;
   state(): PlayerState;
+  /** Tells the player the length the room now knows for the loaded track. */
+  setLength?(ms: number): void;
   destroy(): void;
 }
 
 export interface PlayerEvents {
   /** The track reached its end. */
   onEnded(): void;
-  /** The track cannot play here. */
-  onError(): void;
+  /** The track cannot play here. code is the provider's error code, if any. */
+  onError(code?: number): void;
+  /** Something worth a line in the server log, for example a rejected end. */
+  onNote?(event: string, positionMs: number, durationMs: number): void;
 }
 
 /** Creates a player inside mount and resolves once it takes commands. */

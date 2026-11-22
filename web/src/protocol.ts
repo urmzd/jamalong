@@ -72,6 +72,14 @@ export type Command =
       /** Why an ended report was sent. The server only logs it. */
       reason?: string;
     }
+  | {
+      type: "player";
+      event: string;
+      provider: string;
+      item_id: string;
+      position_ms: number;
+      duration_ms: number;
+    }
   | { type: "ping"; t0: number };
 
 export type ServerMessage =

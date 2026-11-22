@@ -50,3 +50,17 @@ func TestReasonText(t *testing.T) {
 		}
 	}
 }
+
+func TestLogLink(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://open.spotify.com/track/abc?si=sharer123":        "https://open.spotify.com/track/abc",
+		"https://www.youtube.com/watch?v=1lrFsXkT_rM&si=x&t=10":  "https://www.youtube.com/watch?v=1lrFsXkT_rM",
+		"https://soundcloud.com/a/b?utm_source=clipboard#t=0:30": "https://soundcloud.com/a/b",
+		"https://user:pass@example.com/x":                        "https://example.com/x",
+		"https://example.com/" + strings.Repeat("a", 300):        "https://example.com/" + strings.Repeat("a", 180),
+	} {
+		if got := logLink(in); got != want {
+			t.Errorf("logLink(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
