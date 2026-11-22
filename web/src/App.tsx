@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { hasSession } from "./api.ts";
-import { Home, Join, Notice } from "./Entry.tsx";
+import { AskToJoin, Home, Join, Notice } from "./Entry.tsx";
 import { RoomScreen } from "./RoomScreen.tsx";
 
 function roomIdFromPath(): string | null {
@@ -40,10 +40,7 @@ function RoomGate({ roomId }: { roomId: string }) {
 
   if (state === "checking") return null;
   if (state === "in") return <RoomScreen roomId={roomId} />;
-  if (!secretFromLink) {
-    return (
-      <Notice title="You need an invite" body="Ask the host for the room's link or QR code." />
-    );
-  }
+  // With no link, a visitor asks the host to let them in.
+  if (!secretFromLink) return <AskToJoin roomId={roomId} onJoined={() => setState("in")} />;
   return <Join roomId={roomId} secret={secretFromLink} onJoined={() => setState("in")} />;
 }

@@ -94,11 +94,12 @@ func (c *client) send(v any) {
 }
 
 type frame struct {
-	Type       string    `json:"type"`
-	Room       room.View `json:"room"`
-	JoinSecret string    `json:"join_secret"`
-	Code       string    `json:"code"`
-	Ref        string    `json:"ref"`
+	Type       string        `json:"type"`
+	Room       room.View     `json:"room"`
+	JoinSecret string        `json:"join_secret"`
+	Requests   []requestView `json:"requests"`
+	Code       string        `json:"code"`
+	Ref        string        `json:"ref"`
 }
 
 // until reads frames until one satisfies ok, and returns it.

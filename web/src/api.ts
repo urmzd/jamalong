@@ -38,3 +38,38 @@ export async function hasSession(roomId: string): Promise<boolean> {
   });
   return res.ok;
 }
+
+/** A room someone can ask to join. */
+export interface OpenRoom {
+  id: string;
+  host: string;
+  listening: number;
+  now_playing?: string;
+}
+
+export async function listRooms(): Promise<OpenRoom[]> {
+  const res = await fetch("/api/rooms", { credentials: "same-origin" });
+  if (!res.ok) return [];
+  const data = (await res.json().catch(() => ({}))) as { rooms?: OpenRoom[] };
+  return data.rooms ?? [];
+}
+
+/** Asks the host to let this visitor in. Returns the token to poll with. */
+export async function askToJoin(roomId: string, nickname: string): Promise<string> {
+  const data = await post(`/api/rooms/${encodeURIComponent(roomId)}/requests`, { nickname });
+  return data.request ?? "";
+}
+
+export type Answer = "admitted" | "waiting" | "denied" | "expired";
+
+/** Checks whether the host answered. Admitted sets the session cookie. */
+export async function checkRequest(roomId: string, request: string): Promise<Answer> {
+  try {
+    const data = await post(`/api/rooms/${encodeURIComponent(roomId)}/requests/claim`, { request });
+    return data.status === "admitted" ? "admitted" : "waiting";
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "denied") return "denied";
+    if (err instanceof ApiError && err.status === 404) return "expired";
+    throw err;
+  }
+}
