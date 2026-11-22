@@ -2,6 +2,7 @@ package server
 
 import (
 	"log/slog"
+	"net/url"
 	"strings"
 
 	"github.com/urmzd/jamalong/internal/room"
@@ -51,4 +52,24 @@ func reasonText(s string) string {
 		s = s[:40]
 	}
 	return s
+}
+
+// logLink returns a pasted link without its query or fragment, which carry
+// share-tracking IDs such as Spotify's si=, and no longer than 200 bytes.
+// A YouTube watch link keeps its v= parameter, which names the video.
+func logLink(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
+	}
+	v := u.Query().Get("v")
+	u.RawQuery, u.Fragment, u.User = "", "", nil
+	if v != "" {
+		u.RawQuery = url.Values{"v": {v}}.Encode()
+	}
+	out := u.String()
+	if len(out) > 200 {
+		out = out[:200]
+	}
+	return out
 }

@@ -76,6 +76,10 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
         // stall timer end the track if it really stopped.
         if (!noted) events.onNote?.("spotify-bogus-end", data.position, data.duration);
         noted = true;
+        // Treat the player as stopped: the lead stops reporting a frozen
+        // position, the room clock runs on, and the room's stall timer ends
+        // the track if it really stopped. A play command may also revive it.
+        last = { ...last, playing: false, durationMs: expectedMs };
         return;
       }
       ended = true;
@@ -151,6 +155,9 @@ export const createSpotifyPlayer: PlayerFactory = async (mount, events) => {
         ),
         durationMs: last.durationMs,
       };
+    },
+    setLength(ms) {
+      if (ms > 0) expectedMs = ms;
     },
     destroy() {
       window.removeEventListener("message", onMessage);

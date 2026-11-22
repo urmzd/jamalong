@@ -119,3 +119,14 @@ test("a Spotify end counts only at a believable length", () => {
   assert.equal(plausibleLength(19_645, 166_958), false); // the bogus end seen live
   assert.equal(plausibleLength(19_645, 0), true); // nothing to compare with
 });
+
+test("a follower still starting is not sought", () => {
+  const n = now();
+  const at = 1_000 + 20_000;
+  const starting = { itemId: "item-1", playing: false, positionMs: 6_000 };
+  assert.deepEqual(decide(n, at, starting, { lead: false, seenSeekSeq: 0 }), [{ kind: "play" }]);
+  const playing = { ...starting, playing: true };
+  assert.deepEqual(decide(n, at, playing, { lead: false, seenSeekSeq: 0 }), [
+    { kind: "seek", toMs: 20_000 },
+  ]);
+});

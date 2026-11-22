@@ -194,6 +194,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	limit := &tokens{level: 20, burst: 20, rate: 5}
+	notes := &tokens{level: 10, burst: 10, rate: 1}
 	for {
 		_, data, err := ws.Read(ctx)
 		if err != nil {
@@ -202,6 +203,15 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		var in inbound
 		if json.Unmarshal(data, &in) != nil {
 			s.reply(sess, c, failure("invalid", "malformed message", ""))
+			continue
+		}
+		// Player notes only feed the log. They have their own small bucket,
+		// so they never use up a person's commands, and excess notes are
+		// dropped without a reply.
+		if in.Type == "player" {
+			if notes.take(s.cfg.Now()) {
+				s.logPlayer(sess, c.member, in)
+			}
 			continue
 		}
 		if !limit.take(s.cfg.Now()) {
@@ -246,16 +256,6 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 	case "ping":
 		s.reply(sess, c, pongMsg{Type: "pong", T0: in.T0, ServerMS: now.UnixMilli()})
 		return nil
-	case "player":
-		sess.mu.Lock()
-		who := sess.room.Nickname(by)
-		snap := sess.room.Snapshot(now)
-		sess.mu.Unlock()
-		s.cfg.Logger.Info("player", "room", sess.room.ID(), "member", who,
-			"event", reasonText(in.Event), "provider", reasonText(in.Provider),
-			"current", in.ItemID == snap.NowItem, "player_at_ms", in.PositionMS,
-			"player_duration_ms", in.DurationMS, "clock_ms", snap.PositionMS)
-		return nil
 	case "add_url":
 		if s.cfg.Resolver == nil {
 			return fmt.Errorf("no provider is configured: %w", room.ErrInvalid)
@@ -276,7 +276,7 @@ func (s *Server) dispatch(ctx context.Context, sess *session, c *conn, in inboun
 		after := sess.room.Snapshot(s.cfg.Now())
 		s.cfg.Logger.Info("track added", "room", sess.room.ID(), "by", sess.room.Nickname(by),
 			"title", track.Title, "artist", track.Artist, "provider", track.Provider,
-			"provider_id", track.ProviderID, "link", in.URL, "queue", after.Queue)
+			"provider_id", track.ProviderID, "link", logLink(in.URL), "queue", after.Queue)
 		logChanges(s.cfg.Logger, sess.room.ID(), before, after, "add by "+sess.room.Nickname(by)+" while nothing was playing")
 		sess.broadcast()
 		return nil
@@ -365,4 +365,16 @@ func (s *Server) logCommand(sess *session, by string, in inbound, before, after 
 		s.cfg.Logger.Info(in.Type, "room", sess.room.ID(), "by", who, "item", in.ItemID, "member", in.MemberID)
 	}
 	logChanges(s.cfg.Logger, sess.room.ID(), before, after, cause, extra...)
+}
+
+// logPlayer writes one speaker's player event to the log.
+func (s *Server) logPlayer(sess *session, member string, in inbound) {
+	sess.mu.Lock()
+	who := sess.room.Nickname(member)
+	snap := sess.room.Snapshot(s.cfg.Now())
+	sess.mu.Unlock()
+	s.cfg.Logger.Info("player", "room", sess.room.ID(), "member", who,
+		"event", reasonText(in.Event), "provider", reasonText(in.Provider),
+		"current", snap.NowItem != "" && in.ItemID == snap.NowItem,
+		"player_at_ms", in.PositionMS, "player_duration_ms", in.DurationMS, "clock_ms", snap.PositionMS)
 }

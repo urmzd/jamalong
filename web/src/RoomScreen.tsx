@@ -117,6 +117,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
           </section>
         ))}
         <NowPlaying
+          wantSpeaker={wantSpeaker}
           session={session}
           room={room}
           me={me}
@@ -207,6 +208,8 @@ function NowPlaying(props: {
   room: Room;
   me: Member;
   names: Map<string, string>;
+  /** This device asked to play, before the server confirmed it. */
+  wantSpeaker: boolean;
   onSpeaker(on: boolean): void;
 }) {
   const { session, room, me } = props;
@@ -228,17 +231,20 @@ function NowPlaying(props: {
     </button>
   );
 
-  // The player stays mounted while this device is a speaker, even between
-  // tracks, so the browser keeps its permission to play sound.
-  const media = me.speaker ? (
-    <div className="media">
-      <Speaker session={session} />
-    </div>
-  ) : now?.item.track.artwork_url ? (
-    <div className="media">
-      <img className="artwork" src={now.item.track.artwork_url} alt="" />
-    </div>
-  ) : null;
+  // The player mounts on the tap itself, not after the server confirms, so
+  // the provider's player starts while the browser still counts the tap. It
+  // stays mounted while this device is a speaker, even between tracks, so
+  // the browser keeps its permission to play sound.
+  const media =
+    me.speaker || props.wantSpeaker ? (
+      <div className="media">
+        <Speaker session={session} />
+      </div>
+    ) : now?.item.track.artwork_url ? (
+      <div className="media">
+        <img className="artwork" src={now.item.track.artwork_url} alt="" />
+      </div>
+    ) : null;
 
   if (!now) {
     return (

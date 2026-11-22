@@ -20,6 +20,8 @@ export interface Player {
   seek(ms: number): void;
   stop(): void;
   state(): PlayerState;
+  /** Tells the player the length the room now knows for the loaded track. */
+  setLength?(ms: number): void;
   destroy(): void;
 }
 

@@ -11,6 +11,8 @@ const TICK_MS = 500;
 const REPORT_MS = 2_000;
 /** How long a speaker waits before repeating a play or pause command. */
 const COMMAND_REPEAT_MS = 3_000;
+/** How long reports wait for a seek to land before they resume anyway. */
+const SEEK_SETTLE_MS = 5_000;
 
 const FACTORIES: Record<string, PlayerFactory> = {
   youtube: createYouTubePlayer,
@@ -47,13 +49,18 @@ export function Speaker({ session }: { session: RoomSession }) {
     let lastReport = 0;
     // When play or pause was last sent. A player that is still buffering
     // restarts its buffering on a repeated command, so a repeat waits.
-    let lastCommand = { kind: "", at: 0 };
-    const due = (kind: "play" | "pause") => {
+    // Each command kind has its own wait, so alternating commands cannot
+    // reset each other's.
+    const lastSent = new Map<string, number>();
+    const due = (kind: "play" | "pause" | "seek") => {
       const at = Date.now();
-      if (lastCommand.kind === kind && at - lastCommand.at < COMMAND_REPEAT_MS) return false;
-      lastCommand = { kind, at };
+      if (at - (lastSent.get(kind) ?? 0) < COMMAND_REPEAT_MS) return false;
+      lastSent.set(kind, at);
       return true;
     };
+    // Where the last seek went. Reports wait until the player gets there,
+    // so a position read before the seek cannot undo it.
+    let seekTarget: { ms: number; at: number } | null = null;
     // The lead has been within tolerance of the clock on this track.
     let leadSynced = false;
     // The last playing state sent to the log, to log changes only.
@@ -177,7 +184,9 @@ export function Speaker({ session }: { session: RoomSession }) {
           switched = true;
           leadSynced = false;
           wasPlaying = null;
-          lastCommand = { kind: "play", at: Date.now() };
+          lastSent.clear();
+          lastSent.set("play", Date.now());
+          seekTarget = null;
           note("load", action.startMs, action.durationMs);
           continue;
         }
@@ -188,13 +197,18 @@ export function Speaker({ session }: { session: RoomSession }) {
             player.stop();
             loaded = null;
             break;
-          case "seek":
-            // A seek the room did not ask for is the lead leaving a glitch.
-            if (lead && now?.seek_seq === seenSeekSeq)
-              note("resync", state.positionMs, state.durationMs);
+          case "seek": {
+            // A seek someone asked for always goes. A correction for drift
+            // waits like play and pause, since a player still applying the
+            // last seek restarts its buffering on another.
+            const asked = now?.seek_seq !== seenSeekSeq;
+            if (!asked && !due("seek")) break;
+            if (lead && !asked) note("resync", state.positionMs, state.durationMs);
             player.seek(action.toMs);
+            seekTarget = { ms: action.toMs, at: Date.now() };
             finished = null;
             break;
+          }
           case "play":
             if (due("play")) player.play();
             break;
@@ -205,6 +219,8 @@ export function Speaker({ session }: { session: RoomSession }) {
       }
       if (now) seenSeekSeq = now.seek_seq;
       if (now && !switched && loaded === now.item.id) {
+        // The server may learn the length after load.
+        current?.setLength?.(now.item.track.duration_ms);
         const drift = Math.abs(state.positionMs - positionMs(now, serverNow()));
         if (state.playing && drift <= FOLLOW_TOLERANCE_MS) leadSynced = true;
         if (wasPlaying !== null && wasPlaying !== state.playing) {
@@ -221,11 +237,17 @@ export function Speaker({ session }: { session: RoomSession }) {
       }
 
       // Only a player that has started reports, so a track still loading
-      // does not pull the clock back to zero.
+      // does not pull the clock back to zero. After a seek, reports wait
+      // until the player reaches the target, or give up after a while.
+      if (seekTarget) {
+        const landed = Math.abs(state.positionMs - seekTarget.ms) <= FOLLOW_TOLERANCE_MS;
+        if (landed || Date.now() - seekTarget.at > SEEK_SETTLE_MS) seekTarget = null;
+      }
       const reportDue = Date.now() - lastReport >= REPORT_MS;
       if (
         lead &&
         !switched &&
+        !seekTarget &&
         state.playing &&
         now &&
         loaded === now.item.id &&

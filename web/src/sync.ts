@@ -68,7 +68,11 @@ export function decide(
     !!opts.leadSynced &&
     player.playing &&
     expected - player.positionMs > LEAD_RESYNC_MS;
-  if (sought || (!opts.lead && drift > FOLLOW_TOLERANCE_MS) || leadGlitch) {
+  // A follower still starting is left alone: it loaded at the clock's
+  // position, and a seek while it buffers only restarts the buffering.
+  const settled = player.playing || now.paused_at_ms !== null;
+  const followerDrift = !opts.lead && settled && drift > FOLLOW_TOLERANCE_MS;
+  if (sought || followerDrift || leadGlitch) {
     actions.push({ kind: "seek", toMs: expected });
   }
   const shouldPlay = now.paused_at_ms === null;
