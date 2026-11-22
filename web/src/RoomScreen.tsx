@@ -1,10 +1,15 @@
 import {
+  ArrowDown,
+  ArrowUp,
+  Ellipsis,
+  ListStart,
   Pause,
   Play,
   Plus,
   QrCode as QrIcon,
   SkipForward,
   ThumbsUp,
+  Trash2,
   Users,
   UserX,
   Volume2,
@@ -135,6 +140,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
           names={names}
           onVote={(id) => send({ type: "vote", item_id: id })}
           onRemove={(id) => send({ type: "remove", item_id: id })}
+          onMove={(id, index) => send({ type: "move", item_id: id, index })}
         />
         {inviteProps && (
           <section className="card invite-card" aria-label="Invite">
@@ -410,7 +416,19 @@ function Queue(props: {
   names: Map<string, string>;
   onVote(id: string): void;
   onRemove(id: string): void;
+  onMove(id: string, index: number): void;
 }) {
+  const menu = useRef<HTMLDialogElement>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const index = props.items.findIndex((item) => item.id === picked);
+  const item = index >= 0 ? props.items[index] : undefined;
+  const last = props.items.length - 1;
+  // Each action closes the sheet, then sends.
+  const act = (run: () => void) => () => {
+    menu.current?.close();
+    run();
+  };
+
   return (
     <section className="card queue" aria-label="Up next">
       <h2>Up next</h2>
@@ -447,20 +465,77 @@ function Queue(props: {
                     {item.votes}
                   </button>
                 )}
-                {(mine || props.controls) && (
+                {props.controls ? (
                   <button
                     className="icon-btn"
                     type="button"
-                    aria-label={`Remove ${item.track.title}`}
-                    onClick={() => props.onRemove(item.id)}
+                    aria-label={`Actions for ${item.track.title}`}
+                    onClick={() => {
+                      setPicked(item.id);
+                      menu.current?.showModal();
+                    }}
                   >
-                    <X aria-hidden size={20} />
+                    <Ellipsis aria-hidden size={20} />
                   </button>
+                ) : (
+                  mine && (
+                    <button
+                      className="icon-btn"
+                      type="button"
+                      aria-label={`Remove ${item.track.title}`}
+                      onClick={() => props.onRemove(item.id)}
+                    >
+                      <X aria-hidden size={20} />
+                    </button>
+                  )
                 )}
               </li>
             );
           })}
         </ol>
+      )}
+      {props.controls && (
+        <Sheet dialog={menu} title={item?.track.title ?? "Track"}>
+          {item && (
+            <div className="actions">
+              <button
+                className="btn"
+                type="button"
+                disabled={index === 0}
+                onClick={act(() => props.onMove(item.id, 0))}
+              >
+                <ListStart aria-hidden size={18} />
+                Play next
+              </button>
+              <button
+                className="btn"
+                type="button"
+                disabled={index === 0}
+                onClick={act(() => props.onMove(item.id, index - 1))}
+              >
+                <ArrowUp aria-hidden size={18} />
+                Move up
+              </button>
+              <button
+                className="btn"
+                type="button"
+                disabled={index === last}
+                onClick={act(() => props.onMove(item.id, index + 1))}
+              >
+                <ArrowDown aria-hidden size={18} />
+                Move down
+              </button>
+              <button
+                className="btn btn-danger"
+                type="button"
+                onClick={act(() => props.onRemove(item.id))}
+              >
+                <Trash2 aria-hidden size={18} />
+                Remove
+              </button>
+            </div>
+          )}
+        </Sheet>
       )}
     </section>
   );

@@ -572,6 +572,16 @@ input::placeholder {
   padding: var(--s4);
 }
 
+/* A track's actions, one full-width button each. */
+.actions {
+  display: grid;
+  gap: var(--s2);
+}
+
+.actions .btn {
+  justify-content: flex-start;
+}
+
 .sheet-head,
 .sheet-foot {
   display: flex;

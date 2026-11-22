@@ -118,7 +118,10 @@ type Room struct {
 	members map[string]*member
 	joined  []string
 	pending []*item
-	now     *playing
+	// manual is an order a host or collaborator set by hand. Its items play
+	// first, in this order. Everything else follows the fair order.
+	manual []string
+	now    *playing
 	// round is the fairness round of the item that last started playing.
 	round int
 	// served maps a member to the last round in which one of their items
@@ -375,10 +378,34 @@ func (r *Room) Add(by string, t Track, now time.Time) (string, error) {
 	return it.id, nil
 }
 
-// ordered returns the pending items in play order: by round, then by votes,
-// then by arrival.
+// ordered returns the pending items in play order. Items placed by hand come
+// first, in the order they were placed. The rest follow by round, then by
+// votes, then by arrival.
 func (r *Room) ordered() []*item {
-	out := append([]*item(nil), r.pending...)
+	byID := make(map[string]*item, len(r.pending))
+	for _, it := range r.pending {
+		byID[it.id] = it
+	}
+	out := make([]*item, 0, len(r.pending))
+	placed := make(map[string]bool, len(r.manual))
+	for _, id := range r.manual {
+		if it, ok := byID[id]; ok && !placed[id] {
+			out = append(out, it)
+			placed[id] = true
+		}
+	}
+	rest := make([]*item, 0, len(r.pending)-len(out))
+	for _, it := range r.pending {
+		if !placed[it.id] {
+			rest = append(rest, it)
+		}
+	}
+	return append(out, fairOrder(rest)...)
+}
+
+// fairOrder sorts items by round, then by votes, then by arrival.
+func fairOrder(items []*item) []*item {
+	out := append([]*item(nil), items...)
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if a.round != b.round {
@@ -411,6 +438,12 @@ func (r *Room) advance(now time.Time) {
 }
 
 func (r *Room) dropPending(id string) bool {
+	for i, m := range r.manual {
+		if m == id {
+			r.manual = append(r.manual[:i], r.manual[i+1:]...)
+			break
+		}
+	}
 	for i, it := range r.pending {
 		if it.id == id {
 			r.pending = append(r.pending[:i], r.pending[i+1:]...)
@@ -703,4 +736,39 @@ func (r *Room) Tick(now time.Time) bool {
 	r.advance(now)
 	r.version++
 	return true
+}
+
+// Move puts a pending item at position index of the queue, counted from 0
+// for the next track. Host and collaborators only. The whole queue as it
+// now stands becomes the hand-set order, so what people see is what plays;
+// tracks added later go after it, in the fair order.
+func (r *Room) Move(by, itemID string, index int) error {
+	m, err := r.actor(by)
+	if err != nil {
+		return err
+	}
+	if !m.controls() {
+		return fmt.Errorf("only the host and collaborators reorder the queue: %w", ErrForbidden)
+	}
+	order := r.ordered()
+	from := -1
+	for i, it := range order {
+		if it.id == itemID {
+			from = i
+			break
+		}
+	}
+	if from < 0 {
+		return fmt.Errorf("item: %w", ErrNotFound)
+	}
+	index = max(0, min(index, len(order)-1))
+	moved := order[from]
+	order = append(order[:from], order[from+1:]...)
+	order = append(order[:index], append([]*item{moved}, order[index:]...)...)
+	r.manual = r.manual[:0]
+	for _, it := range order {
+		r.manual = append(r.manual, it.id)
+	}
+	r.version++
+	return nil
 }

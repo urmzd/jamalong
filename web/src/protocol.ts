@@ -58,6 +58,7 @@ export type Command =
   | { type: "add_url"; url: string }
   | { type: "admit" | "deny"; request_id: string }
   | { type: "remove" | "vote"; item_id: string }
+  | { type: "move"; item_id: string; index: number }
   | { type: "skip" | "play" | "pause" | "rotate_link" | "end" }
   | { type: "seek"; position_ms: number }
   | { type: "speaker"; on: boolean }
